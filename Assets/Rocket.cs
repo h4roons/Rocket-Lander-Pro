@@ -2,52 +2,142 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class Rocket : MonoBehaviour
+public class Spacecraft : MonoBehaviour
 {
-    [SerializeField] float rcsThrust = 100f;
-    [SerializeField] float mainThrust = 100f;
-    [SerializeField] AudioClip mainEngine;
-    [SerializeField] ParticleSystem mainEngineParticles;
-   
+    [SerializeField] protected float rcsThrust = 100f;
+    [SerializeField] protected float mainThrust = 100f;
+    [SerializeField] protected float levelLoadDelay = 2f;
 
-    
+    [SerializeField] protected AudioClip mainEngine;
+    [SerializeField] protected AudioClip success;
+    [SerializeField] protected AudioClip death;
 
-    Rigidbody rigidBody;
-    AudioSource audioSource;
+    [SerializeField] protected ParticleSystem mainEngineParticles;
+    [SerializeField] protected ParticleSystem successParticles;
+    [SerializeField] protected ParticleSystem deathParticles;
 
-    bool isTransitioning = false;
-    bool collisionsDisabled = false;
+    protected Rigidbody rigidBody;
+    protected AudioSource audioSource;
 
-    // Use this for initialization
-    void Start()
+    protected bool isTransitioning = false;
+    protected bool collisionsDisabled = false;
+    protected bool isSandboxMode = false;
+
+    protected virtual void Start()
     {
         rigidBody = GetComponent<Rigidbody>();
         audioSource = GetComponent<AudioSource>();
     }
 
-    // Update is called once per frame
-    void Update()
+    protected virtual void Update()
     {
         if (!isTransitioning)
         {
             RespondToThrustInput();
             RespondToRotateInput();
+            if (Input.GetKeyDown(KeyCode.P)) // Check for sandbox mode toggle
+            {
+                ToggleSandboxMode();
+            }
         }
-        
     }
-    
 
-  
-  
-
- 
-
- 
-    
-
-    private void RespondToThrustInput()
+    protected virtual void OnCollisionEnter(Collision collision)
     {
-        if (Input.GetKey(KeyCode.Space)) // can thrust while rotating
+        if (isTransitioning || collisionsDisabled || isSandboxMode) { return; }
+
+        switch (collision.gameObject.tag)
+        {
+            case "Friendly":
+                // do nothing
+                break;
+            case "Finish":
+                StartSuccessSequence();
+                break;
+            default:
+                StartDeathSequence();
+                break;
+        }
+    }
+
+    protected virtual void StartSuccessSequence()
+    {
+        isTransitioning = true;
+        audioSource.Stop();
+        audioSource.PlayOneShot(success);
+        successParticles.Play();
+        Invoke("LoadNextLevel", levelLoadDelay);
+    }
+
+    protected virtual void StartDeathSequence()
+    {
+        isTransitioning = true;
+        audioSource.Stop();
+        audioSource.PlayOneShot(death);
+        deathParticles.Play();
+        Invoke("LoadFirstLevel", levelLoadDelay);
+    }
+
+    protected virtual void LoadNextLevel()
+    {
+        int currentSceneIndex = SceneManager.GetActiveScene().buildIndex;
+        int nextSceneIndex = currentSceneIndex + 1;
+        if (nextSceneIndex == SceneManager.sceneCountInBuildSettings)
+        {
+            nextSceneIndex = 0; // loop back to start
+        }
+        SceneManager.LoadScene(nextSceneIndex);
+    }
+
+    protected virtual void LoadFirstLevel()
+    {
+        SceneManager.LoadScene(0);
+    }
+
+    protected virtual void RespondToThrustInput()
+    {
+        // Base class does nothing, intended to be overridden by subclasses
+    }
+
+    protected virtual void RespondToRotateInput()
+    {
+        // Base class does nothing, intended to be overridden by subclasses
+    }
+
+    protected virtual void RotateManually(float rotationThisFrame)
+    {
+        rigidBody.freezeRotation = true; // take manual control of rotation
+        transform.Rotate(Vector3.forward * rotationThisFrame);
+        rigidBody.freezeRotation = false; // resume physics control of rotation
+    }
+
+    protected virtual void ToggleSandboxMode()
+    {
+        isSandboxMode = !isSandboxMode;
+        Debug.Log("Sandbox Mode: " + isSandboxMode);
+    }
+}
+
+public class Rocket : Spacecraft
+{
+    protected override void Start()
+    {
+        base.Start();
+    }
+
+    protected override void Update()
+    {
+        base.Update();
+    }
+
+    protected override void OnCollisionEnter(Collision collision)
+    {
+        base.OnCollisionEnter(collision);
+    }
+
+    protected override void RespondToThrustInput()
+    {
+        if (isSandboxMode || Input.GetKey(KeyCode.Space))
         {
             ApplyThrust();
         }
@@ -57,41 +147,39 @@ public class Rocket : MonoBehaviour
         }
     }
 
-    private void StopApplyingThrust()
+    protected override void RespondToRotateInput()
     {
-        audioSource.Stop();
-        mainEngineParticles.Stop();
+        if (isSandboxMode || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.D))
+        {
+            if (Input.GetKey(KeyCode.A))
+            {
+                RotateManually(rcsThrust * Time.deltaTime);
+            }
+            else if (Input.GetKey(KeyCode.D))
+            {
+                RotateManually(-rcsThrust * Time.deltaTime);
+            }
+        }
     }
 
-    private void ApplyThrust()
+    protected virtual void ApplyThrust()
     {
         rigidBody.AddRelativeForce(Vector3.up * mainThrust * Time.deltaTime);
-        if (!audioSource.isPlaying) 
+        if (!audioSource.isPlaying)
         {
             audioSource.PlayOneShot(mainEngine);
         }
         mainEngineParticles.Play();
     }
 
-    private void RespondToRotateInput()
+    protected virtual void StopApplyingThrust()
     {
-        if (Input.GetKey(KeyCode.A))
-        {
-            RotateManually(rcsThrust * Time.deltaTime);
-        }
-        else if (Input.GetKey(KeyCode.D))
-        {
-            RotateManually(-rcsThrust * Time.deltaTime);
-        }
+        audioSource.Stop();
+        mainEngineParticles.Stop();
     }
-
-    private void RotateManually(float rotationThisFrame)
-    {
-        rigidBody.freezeRotation = true; // take manual control of rotation
-        transform.Rotate(Vector3.forward * rotationThisFrame);
-        rigidBody.freezeRotation = false; // resume physics control of rotation
-    }
-
-   
 }
 
+public class SandboxRocket : Rocket
+{
+    // No need to override anything here, sandbox mode handled in base class
+}
