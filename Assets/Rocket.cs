@@ -120,20 +120,6 @@ public class Spacecraft : MonoBehaviour
 
 public class Rocket : Spacecraft
 {
-    protected override void Start()
-    {
-        base.Start();
-    }
-
-    protected override void Update()
-    {
-        base.Update();
-    }
-
-    protected override void OnCollisionEnter(Collision collision)
-    {
-        base.OnCollisionEnter(collision);
-    }
 
     protected override void RespondToThrustInput()
     {
@@ -179,7 +165,4 @@ public class Rocket : Spacecraft
     }
 }
 
-public class SandboxRocket : Rocket
-{
-    // No need to override anything here, sandbox mode handled in base class
-}
+
