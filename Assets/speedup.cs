@@ -20,7 +20,8 @@ public class speedup : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         fast();
-        Destroy(this.gameObject);
+        Invoke("setNormal",0.5f);
+        
         
         
         
@@ -28,9 +29,9 @@ public class speedup : MonoBehaviour
 
     public void fast()
     {
-        Time.timeScale = 1.5f;
+        Time.timeScale = 1.2f;
         Debug.Log("Collision occured");
-        Invoke("setNormal",0.5f);
+        
         
     }
 
